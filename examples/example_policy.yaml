@@ -1,0 +1,209 @@
+# =============================================================================
+# AgentGate Example Policy
+# =============================================================================
+# This file demonstrates all features of the AgentGate policy format.
+# Use this as a starting point and customize for your environment.
+
+version: "1"
+description: >
+  Comprehensive example policy demonstrating all AgentGate features.
+  This policy defines permissions for a code assistant, a data pipeline,
+  and a fallback policy for unregistered agents.
+
+# ---------------------------------------------------------------------------
+# Agent definitions
+# ---------------------------------------------------------------------------
+agents:
+
+  # ---- Code Assistant Agent -----------------------------------------------
+  code-assistant:
+    role: "AI coding assistant with restricted file and tool access"
+    tools:
+      allowed:
+        - name: read_file
+          args:
+            path:
+              pattern: "^/(tmp|home|workspace)/"
+              max_length: 512
+
+        - name: write_file
+          args:
+            path:
+              pattern: "^/(tmp|workspace)/"
+              max_length: 512
+            content:
+              max_length: 50000
+          rate_limit:
+            max_calls: 10
+            window_seconds: 60
+
+        - name: search_*
+          # Glob pattern: allows search_code, search_files, search_docs, etc.
+
+        - name: run_tests
+          rate_limit:
+            max_calls: 5
+            window_seconds: 120
+
+        - name: lint_code
+
+      denied:
+        - name: exec_shell
+          reason: "Shell execution is not permitted for code assistants."
+        - name: delete_*
+          reason: "Deletion operations are forbidden. Use a human reviewer."
+        - name: deploy_*
+          reason: "Deployment must go through CI/CD pipeline."
+
+    resources:
+      filesystem:
+        read:
+          - "/workspace/**"
+          - "/tmp/**"
+          - "/home/user/projects/**"
+        write:
+          - "/workspace/**"
+          - "/tmp/**"
+      network:
+        allowed_domains:
+          - "api.github.com"
+          - "pypi.org"
+          - "*.readthedocs.io"
+        denied_domains:
+          - "*.evil.com"
+          - "*.malware.net"
+
+    limits:
+      max_tool_calls_per_session: 200
+      max_session_duration_seconds: 7200  # 2 hours
+
+  # ---- Data Pipeline Agent ------------------------------------------------
+  data-pipeline:
+    role: "Automated data processing agent with database access"
+    tools:
+      allowed:
+        - name: query_database
+          args:
+            sql:
+              pattern: "^SELECT"
+              max_length: 5000
+            database:
+              enum:
+                - "analytics"
+                - "reporting"
+                - "staging"
+          rate_limit:
+            max_calls: 100
+            window_seconds: 60
+
+        - name: write_csv
+          args:
+            path:
+              pattern: "^/data/exports/"
+              max_length: 256
+            row_limit:
+              min: 1
+              max: 1000000
+
+        - name: send_notification
+          args:
+            channel:
+              enum:
+                - "slack"
+                - "email"
+            message:
+              max_length: 1000
+          rate_limit:
+            max_calls: 20
+            window_seconds: 3600
+
+      denied:
+        - name: "query_database"
+          # This deny entry has a more specific check -- it would be evaluated
+          # first.  In practice, the allow rule's regex pattern (^SELECT) already
+          # prevents non-SELECT queries.  This entry serves as defence-in-depth.
+          reason: "Only SELECT queries are permitted."
+          # Note: Because deny rules are evaluated first with exact name matching,
+          # and the allowed rule also matches "query_database", the allow rule's
+          # arg constraints will enforce the SELECT-only policy.
+          # To make this deny effective, you would use a different pattern.
+        - name: drop_*
+          reason: "DROP operations are strictly forbidden."
+        - name: exec_shell
+          reason: "Shell execution is not permitted."
+
+    resources:
+      filesystem:
+        read:
+          - "/data/**"
+          - "/config/**"
+        write:
+          - "/data/exports/**"
+          - "/tmp/**"
+      network:
+        allowed_domains:
+          - "db.internal.example.com"
+          - "slack.com"
+          - "smtp.example.com"
+        denied_domains:
+          - "*"
+          # Deny-all with specific allows above.  The deny list is checked
+          # first, but allowed_domains take precedence in the resource check.
+
+    limits:
+      max_tool_calls_per_session: 500
+      max_session_duration_seconds: 14400  # 4 hours
+
+  # ---- Default (fallback) agent -------------------------------------------
+  __default__:
+    role: "Unregistered agent -- highly restricted"
+    tools:
+      allowed:
+        - name: read_file
+          args:
+            path:
+              pattern: "^/tmp/"
+              max_length: 256
+      denied:
+        - name: write_*
+          reason: "Unregistered agents cannot write."
+        - name: delete_*
+          reason: "Unregistered agents cannot delete."
+        - name: exec_*
+          reason: "Unregistered agents cannot execute."
+        - name: deploy_*
+          reason: "Unregistered agents cannot deploy."
+
+    resources:
+      filesystem:
+        read:
+          - "/tmp/**"
+        write: []
+      network:
+        allowed_domains: []
+        denied_domains:
+          - "*"
+
+    limits:
+      max_tool_calls_per_session: 10
+      max_session_duration_seconds: 300  # 5 minutes
+
+# ---------------------------------------------------------------------------
+# Audit configuration
+# ---------------------------------------------------------------------------
+audit:
+  enabled: true
+  storage: sqlite
+  sign_records: false
+  retention_days: 90
+
+# ---------------------------------------------------------------------------
+# Anomaly detection configuration
+# ---------------------------------------------------------------------------
+anomaly:
+  enabled: true
+  sensitivity: medium
+  alerts:
+    - type: log
+    - type: webhook
+      url: "https://hooks.example.com/agentgate-alerts"

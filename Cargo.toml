@@ -1,0 +1,29 @@
+[package]
+name = "agentgate-core"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "High-performance core for AgentGate AI agent security framework"
+
+[lib]
+name = "agentgate_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+glob-match = "0.2"
+regex = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+chrono = { version = "0.4", features = ["serde"] }
+crossbeam-channel = "0.5"
+parking_lot = "0.12"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }
+
+[profile.release]
+opt-level = 3
+lto = true
