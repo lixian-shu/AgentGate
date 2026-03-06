@@ -7,6 +7,12 @@
 //! 2. **AuditWriter**  -- batched, non-blocking audit event writing to SQLite.
 //! 3. **AuditSigner**  -- Ed25519 signing and verification of audit records.
 
+// PyO3's map_err conversions from String -> PyErr are flagged by clippy as
+// "useless" because PyO3 implements From<String> for PyErr. However, the
+// explicit map_err is needed to select the correct exception type
+// (PyValueError vs PyRuntimeError). Suppress globally for this module.
+#![allow(clippy::useless_conversion)]
+
 pub mod audit;
 pub mod policy;
 
@@ -55,7 +61,7 @@ impl PyPolicyMatcher {
     ) -> PyResult<()> {
         self.inner
             .compile_policy(agent_id, deny_rules_json, allow_rules_json)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))
+            .map_err(pyo3::exceptions::PyValueError::new_err)
     }
 
     /// Check whether a tool call is permitted.
@@ -126,7 +132,7 @@ impl PyAuditWriter {
     #[pyo3(signature = (db_path, batch_size=100, flush_interval_ms=1000))]
     fn new(db_path: &str, batch_size: usize, flush_interval_ms: u64) -> PyResult<Self> {
         let writer = audit::AuditWriter::new(db_path, batch_size, flush_interval_ms)
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
+            .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
         Ok(Self {
             inner: Some(writer),
         })
@@ -137,7 +143,7 @@ impl PyAuditWriter {
         match &self.inner {
             Some(w) => w
                 .write_event(event_json)
-                .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e)),
+                .map_err(pyo3::exceptions::PyRuntimeError::new_err),
             None => Err(pyo3::exceptions::PyRuntimeError::new_err(
                 "AuditWriter is closed",
             )),
@@ -147,9 +153,7 @@ impl PyAuditWriter {
     /// Force-flush pending events to SQLite.
     fn flush(&self) -> PyResult<()> {
         match &self.inner {
-            Some(w) => w
-                .flush()
-                .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e)),
+            Some(w) => w.flush().map_err(pyo3::exceptions::PyRuntimeError::new_err),
             None => Err(pyo3::exceptions::PyRuntimeError::new_err(
                 "AuditWriter is closed",
             )),
@@ -161,7 +165,7 @@ impl PyAuditWriter {
         match &mut self.inner {
             Some(w) => {
                 w.close()
-                    .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
+                    .map_err(pyo3::exceptions::PyRuntimeError::new_err)?;
                 self.inner = None;
                 Ok(())
             }
@@ -206,7 +210,7 @@ impl PyAuditSigner {
     #[staticmethod]
     fn from_bytes(secret_bytes: &[u8]) -> PyResult<Self> {
         let signer = audit::AuditSigner::from_bytes(secret_bytes)
-            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))?;
+            .map_err(pyo3::exceptions::PyValueError::new_err)?;
         Ok(Self { inner: signer })
     }
 

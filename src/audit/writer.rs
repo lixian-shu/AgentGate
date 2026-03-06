@@ -45,7 +45,7 @@ impl AuditWriter {
     /// Create a new `AuditWriter`.
     ///
     /// - `db_path`           -- path to the SQLite database file (created if
-    ///                          it does not exist).
+    ///   it does not exist).
     /// - `batch_size`        -- maximum number of events per batch.
     /// - `flush_interval_ms` -- maximum milliseconds between flushes.
     pub fn new(db_path: &str, batch_size: usize, flush_interval_ms: u64) -> Result<Self, String> {
