@@ -419,6 +419,8 @@ mod tests {
             pattern: Some(r"^/tmp/.*$".to_string()),
             allowed_values: None,
             max_length: Some(256),
+            min: None,
+            max: None,
         };
         let compiled = CompiledArgConstraint::compile(&raw).unwrap();
         assert!(compiled.validate(&json!("/tmp/foo.txt")).is_ok());

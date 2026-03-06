@@ -297,7 +297,7 @@ mod tests {
     #[test]
     fn test_invalid_args_json() {
         let m = make_matcher();
-        let decision = m.check_tool_call("agent-1", "file_list", "NOT JSON");
+        let _decision = m.check_tool_call("agent-1", "file_list", "NOT JSON");
         // file_list has no arg constraints, but the JSON is still parsed
         // Let's use file_read which has constraints
         let decision2 = m.check_tool_call("agent-1", "file_read", "NOT JSON");
