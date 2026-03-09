@@ -3,7 +3,7 @@ requires = ["maturin>=1.5,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "agentgate"
+name = "agentgate-ai"
 version = "0.1.0"
 description = "Runtime security for autonomous AI agents"
 readme = "README.md"
@@ -33,7 +33,7 @@ dependencies = [
 langchain = ["langchain-core>=0.2"]
 crewai = ["crewai>=0.41"]
 autogen = ["autogen-core>=0.4"]
-all = ["agentgate[langchain,crewai,autogen]"]
+all = ["agentgate-ai[langchain,crewai,autogen]"]
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21",
